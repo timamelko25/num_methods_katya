@@ -6,13 +6,6 @@
 #include <stdbool.h>
 #include <math.h>
 
-
-// 23 variant 1 3
-// y=lg(x-1) + 0.5x
-// y=x^3+0.4x^2+0.6|x|-1.6
-
-// x y5 y7 y10 
-
 double f1 (double x) {
     return (2*x-log10(x));
 }
