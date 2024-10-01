@@ -9,8 +9,7 @@
 // 1 4 
 // x^5-2.2x^3+0.5x^2-7x [-2;2]
 
-
-#define result -10.8
+#define result -10.818508
 
 double func(double x) {
     return pow(x, 5) - 2.2 * pow(x, 3) + 0.5 * pow(x, 2) - 7 * x;
@@ -33,16 +32,11 @@ double* runge_write(double(*f)(double), double a, double b, double eps) {
 	int n = 1;
 	int counter = 0;
 	S2 = (b - a) * f(a);
-
 	do {
-
 		counter++;
-
 		S = S2;
 		n *= 2;
-
 		S2 = integrate_rec_l(f, S, n, a, b);
-
 	} while (fabs(S2 - S) > eps);
     double *res = (double*)calloc(3, sizeof(double));
     res[0] = S2;
@@ -70,8 +64,9 @@ void write_to_file3(char const file_name[], int* x1, double* x2, double* x3, int
 int main() {
     setlocale(LC_ALL, "Rus");
     double eps = 0.1;
-    double a = 0, b = 2;
+    double a = 0, b = 1.9;
     double count_iterations = 7;
+
     int* iterations = (int*)calloc(count_iterations, sizeof(int));
     double* results = (double*)calloc(count_iterations, sizeof(double));
     double* segments = (double*)calloc(count_iterations, sizeof(double));
@@ -86,6 +81,6 @@ int main() {
 
     double* error = find_error(results, count_iterations, result);
 
-    write_to_file3("iterations-error-segments.txt", iterations, error, segments, count_iterations);
+    write_to_file3("data.txt", iterations, error, segments, count_iterations);
     return 0;
 }
