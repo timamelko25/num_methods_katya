@@ -28,8 +28,8 @@ def read_file2(file):
     return tmp, tmp2, tmp3, tmp4
     
 def research():
-    x, y, dy, err = read_file2("results_h1.txt")
-    x1, y1, dy1, err1 = read_file2("results_h2.txt")
+    x, y, dy, err = read_file2("h1_x_y_err.txt")
+    x1, y1, dy1, err1 = read_file2("h2_x_y_err.txt")
     
     eps = [pow(10, -i) for i in range(1, 8)]
     

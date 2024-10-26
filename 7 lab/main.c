@@ -8,218 +8,160 @@
 #include <omp.h>
 
 // 7 1 1 ГУ 2
-// 
+// y`` + y = 2x - pi [0,pi]
+// точное решение y = 2x-pi+pi*cos(x) + sin(x)
 
-double left_part(double x) {
-    return 4 * x * x + 3; 
+#define MAX_ITER 2000000
+
+typedef struct FuncRes {
+    double Point;
+    double Func, Func1, Func2;
+    double Der, Der1, Der2;
+} FuncRes;
+
+FuncRes Results[MAX_ITER];
+
+double Func1(double x, double y, double y1) {
+    return -1 * y + 2 * x - M_PI;
 }
 
-double right_part(double x) {
-    return exp(-x * x); 
+double Func2(double x, double y, double y1) {
+    return -1 * y;
 }
 
-double func(double x) {
-    return exp(-x * x); 
+double Sol(double x) {
+    return 2 * x - M_PI + M_PI * cos(x) + sin(x);
 }
 
-double* uniform_grid(double a, double b, int n) {
-    double* x = (double*)malloc(n * sizeof(double));
-    double h = (b - a) / (n - 1); 
-
-    for (int i = 0; i < n; i++) {
-        x[i] = a + i * h;
+int Superposition(double a, double b, double y0, double yd0, double y10, double y1d0, double y20, double y2d0, double h, double eps) {
+    double prev, prev_d, curr, curr_d, tmp0, der, tmp1, prev_1;
+    double prev1, prev_d1, curr1, curr_d1, tmp01, der1, tmp11, prev_11;
+    double prev2, prev_d2, curr2, curr_d2, tmp02, der2, tmp12, prev_12;
+    int N = 0, i;
+    for (i = 0; i < MAX_ITER; i++) {
+        Results[i].Point = Results[i].Func = Results[i].Der = Results[i].Func1 = Results[i].Der1 = Results[i].Func2 = Results[i].Der2 = 0;
     }
-    return x;
-}
+    while (a <= b) {
+        prev_d = (N - 1 >= 0 ? Results[N - 1].Der : yd0);
+        prev = (N - 1 >= 0 ? Results[N - 1].Func : y0);
+        tmp0 = prev + h * prev_d;
+        der = prev_d + h * Func1(a, prev, prev_d);
+        prev_1 = tmp0;
 
-double* smooth_grid(double a, double b, int n, double factor) {
-    double* x = (double*)malloc((n+1) * sizeof(double));
-    int i;
-    double h = ((b - a) * 0.55 - (b - a) * 0.45) / (n - (n * factor) * 2);
-    double h1 = (b - a) * 0.45 / (n * factor);
+        prev_d1 = (N - 1 >= 0 ? Results[N - 1].Der1 : y1d0);
+        prev1 = (N - 1 >= 0 ? Results[N - 1].Func1 : y10);
+        tmp01 = prev1 + h * prev_d1;
+        der1 = prev_d1 + h * Func2(a, prev1, prev_d1);
+        prev_11 = tmp01;
 
-    for (i = 0; i <= (n * factor); i++)
-        x[i] = a + i * h1;
-    for (i = (n * factor) + 1; i <= n - (n * factor); i++)
-        x[i] = (b - a) * 0.45 + (i - (n * factor)) * h;
-    for (i = n - (n * factor) + 1; i <= n; i++)
-        x[i] = (b - a) * 0.55 + (i - n + (n * factor)) * h1;
-    return x;
-}
+        prev_d2 = (N - 1 >= 0 ? Results[N - 1].Der2 : y2d0);
+        prev2 = (N - 1 >= 0 ? Results[N - 1].Func2 : y20);
+        tmp02 = prev2 + h * prev_d2;
+        der2 = prev_d2 + h * Func2(a, prev2, prev_d2);
+        prev_12 = tmp02;
 
-void thomas_solve(double* a, double* b, double* c, double* d, double* y, int N) {
-    double* c_star = (double*)malloc(N * sizeof(double));
-    double* d_star = (double*)malloc(N * sizeof(double));
+        if (eps != INFINITY) {
+            while (N < MAX_ITER) {
+                tmp0 = prev + h / 2 * prev_d;
+                tmp1 = prev_d + h / 2 * Func1(a, prev, prev_d);
+                curr = tmp0 + h / 2 * tmp1;
+                curr_d = tmp1 + h / 2 * Func1(a + h / 2, tmp0, tmp1);
 
-    c_star[0] = c[0] / b[0];
-    d_star[0] = d[0] / b[0];
+                tmp01 = prev1 + h / 2 * prev_d1;
+                tmp11 = prev_d1 + h / 2 * Func2(a, prev1, prev_d1);
+                curr1 = tmp01 + h / 2 * tmp11;
+                curr_d1 = tmp11 + h / 2 * Func2(a + h / 2, tmp01, tmp11);
 
-    for (int i = 1; i < N; i++) {
-        double m = 1.0 / (b[i] - a[i] * c_star[i - 1]);
-        c_star[i] = c[i] * m;
-        d_star[i] = (d[i] - a[i] * d_star[i - 1]) * m;
-    }
+                tmp02 = prev2 + h / 2 * prev_d2;
+                tmp12 = prev_d2 + h / 2 * Func2(a, prev2, prev_d2);
+                curr2 = tmp02 + h / 2 * tmp12;
+                curr_d2 = tmp12 + h / 2 * Func2(a + h / 2, tmp02, tmp12);
 
-    y[N - 1] = d_star[N - 1];
-    for (int i = N - 2; i >= 0; i--) {
-        y[i] = d_star[i] - c_star[i] * y[i + 1];
-    }
-
-    free(c_star);
-    free(d_star);
-}
-
-void FDM(double* x, double* y, double a, double b, double alpha, double beta, int N) { 
-    double h = (b - a) / (N - 1);
-
-    double* A = (double*)malloc((N - 2) * sizeof(double));
-    double* B = (double*)malloc((N - 2) * sizeof(double));
-    double* C = (double*)malloc((N - 2) * sizeof(double));
-    double* F = (double*)malloc((N - 2) * sizeof(double));
-
-    for (int i = 0; i < N - 2; ++i) {
-        double xi = x[i + 1];
-        A[i] = 1 - (h * 4 * xi) / 2;
-        B[i] = -2 + h * h * left_part(xi);
-        C[i] = 1 + (h * 4 * xi) / 2;
-        F[i] = h * h * right_part(xi);
-    }
-
-    F[0] -= (1 - (h * 4 * x[1]) / 2) * alpha;
-    F[N - 3] -= (1 + (h * 4 * x[N - 2]) / 2) * beta;
-
-    thomas_solve(A, B, C, F, y + 1, N - 2);
-
-    y[0] = alpha;
-    y[N - 1] = beta;
-
-    free(A);
-    free(B);
-    free(C);
-    free(F);
-}
-
-double** FDM_EPS(double a, double b, double alpha, double beta, double eps) {
-    int n = 10;
-    double *x, *y, *x2, *y2;
-    double mid_x = (a + b) / 2.0;
-    double max_error = eps + 1;
-
-    while (max_error > eps) {
-        x = uniform_grid(a, b, n);
-        y = (double*)calloc(n, sizeof(double));
-        FDM(x, y, a, b, alpha, beta, n);
-
-        x2 = uniform_grid(a, b, 2 * n);
-        y2 = (double*)calloc(2 * n, sizeof(double));
-        FDM(x2, y2, a, b, alpha, beta, 2 * n);
-
-        int mid_index_n = n / 2;
-        int mid_index_2n = n;
-
-        max_error = fabs(y[mid_index_n] - y2[mid_index_2n]);
-
-        if (max_error <= eps) {
-            break;
+                if (fabs(curr - prev_1) * 100000 < eps && fabs(curr1 - prev_11) * 100000 < eps && fabs(curr2 - prev_12) * 100000 < eps) {
+                    Results[N].Func = curr;
+                    Results[N].Der = curr_d;
+                    Results[N].Func1 = curr1;
+                    Results[N].Der1 = curr_d1;
+                    Results[N].Func2 = curr2;
+                    Results[N].Der2 = curr_d2;
+                    Results[N].Point = a;
+                    //fprintf(F_a, "%.15lf\n", Results[N].Point);
+                    //fprintf(F_h, "%.15lf\n", h);
+                    N++;
+                    break;
+                }
+                h /= 2;
+                prev_1 = tmp0;
+                prev_11 = tmp01;
+                prev_12 = tmp02;
+            }
+            y0 = curr - (curr - prev_1), yd0 = curr_d, a += h;
+            y10 = curr1 - (curr1 - prev_11), y1d0 = curr_d1;
+            y20 = curr2 - (curr2 - prev_12), y2d0 = curr_d2;
         }
-
-        free(x);
-        free(y);
-        free(x2);
-        free(y2);
-        n *= 2;
+        else {
+            Results[N].Func = tmp0;
+            Results[N].Der = der;
+            Results[N].Func1 = tmp01;
+            Results[N].Der1 = der1;
+            Results[N].Func2 = tmp02;
+            Results[N].Der2 = der2;
+            Results[N].Point = a;
+            N++;
+            a += h;
+        }
     }
-    printf("%d\n", n);
-    double** res = (double**)malloc(3 * sizeof(double*));
-    res[0] = x2;
-    res[1] = y2;
-    res[2] = (double*)(intptr_t)(2 * n);
-
-    return res;
-}
-double* find_error(double* x, double* y, int size) {
-    double* error = (double*)calloc(size, sizeof(double));
-    #pragma omp parallel for
-    for (int i = 0; i < size; i++) {
-        error[i] = fabs(func(x[i]) - y[i]);
-    }
-    return error;
+    //fclose(F_a);
+    //fclose(F_h);
+    return N;
 }
 
-double max(double* x, int size) {
-    double max = x[0];
-    for (int i = 1; i < size; i++) {
-        if (x[i] > max) {
-            max = x[i];
-        }  
+void research() {
+    double tmp1, tmp2;
+    double h = 0.01;
+    FILE* func_h1 = fopen("h1_x_y_err.txt", "w");
+    FILE* func_h2 = fopen("h2_x_y_err.txt", "w");
+    int N1 = Superposition(0, M_PI, 0.0, 0, 0, 0.0, 0.0, 0, h, INFINITY);
+    tmp1 = (1 - Results[N1 - 1].Func - Results[N1 - 1].Func2) / (Results[N1 - 1].Func1 - Results[N1 - 1].Func2);
+    tmp2 = (Results[N1 - 1].Func + Results[N1 - 1].Func1 - 1) / (Results[N1 - 1].Func1 - Results[N1 - 1].Func2);
+    for (int i = 0; i < N1; i++) {
+        double arg1, arg2, arg3;
+        arg1 = Results[i].Point;
+        arg2 = Results[i].Func + tmp1 * Results[i].Func1 + tmp2 * Results[i].Func2;
+        arg3 = fabs(Results[i].Func + tmp1 * Results[i].Func1 + tmp2 * Results[i].Func2 - Sol(Results[i].Point));
+        fprintf(func_h1, "%.15lf %.15lf %.15lf\n", arg1, arg2, arg3);
     }
-    return max;
-}
-
-double find_error2(double (*f)(double), double** tmp1, int size) {
-    double* error = (double*)calloc(size, sizeof(double));
-    for (int i = 0; i < size; i++) {
-        error[i] = fabs(tmp1[1][i] - f(tmp1[0][i]));
+    h = 0.0001;
+    int N2 = Superposition(0, M_PI, 0.0, 0, 0, 0.0, 0.0, 0, h, INFINITY);
+    tmp1 = (1 - Results[N2 - 1].Func - Results[N2 - 1].Func2) / (Results[N2 - 1].Func1 - Results[N2 - 1].Func2);
+    tmp2 = (Results[N2 - 1].Func + Results[N2 - 1].Func1 - 1) / (Results[N2 - 1].Func1 - Results[N2 - 1].Func2);
+    for (int i = 0; i < N2; i++) {
+        double arg1, arg2, arg3;
+        arg1 = Results[i].Point;
+        arg2 = Results[i].Func + tmp1 * Results[i].Func1 + tmp2 * Results[i].Func2;
+        arg3 = fabs(Results[i].Func + tmp1 * Results[i].Func1 + tmp2 * Results[i].Func2 - Sol(Results[i].Point));
+        fprintf(func_h2, "%.15lf %.15lf %.15lf\n", arg1, arg2, arg3);
     }
-    return max(error, size);
-}
-
-void write_to_file3(char const file_name[], double* x1, double* x2, double* x3, int size) {
-    FILE* file = fopen(file_name, "w");
-    for (int i = 0; i < size; i++) {
-        fprintf(file, "%.15f %.15f %.15f\n", x1[i], x2[i], x3[i]);
+    double max, aux;
+    int N;
+    FILE* RES_err_eps = fopen("error_eps.txt", "w");
+    for (double eps = 1e-5; eps <= 0.1; eps *= 10) {
+        max = 0;
+        N = Superposition(0, M_PI, 0, 0, 0, 0, 0, 0, 0.1, eps);
+        printf("N при eps = %.15lf: %d\n", eps, N);
+        tmp1 = (1 - Results[N - 1].Func - Results[N - 1].Func2) / (Results[N - 1].Func1 - Results[N - 1].Func2);
+        tmp2 = (Results[N - 1].Func + Results[N - 1].Func1 - 1) / (Results[N - 1].Func1 - Results[N - 1].Func2);
+        for (int i = 0; i < N; i++) {
+            aux = fabs(Results[i].Func + tmp1 * Results[i].Func1 + tmp2 * Results[i].Func2 - Sol(Results[i].Point));
+            if (aux > max) {
+                max = aux;
+            }
+        }
+        fprintf(RES_err_eps, "%.15lf\n", max);
     }
-    fclose(file);
 }
 
 int main() {
-    double a = 0, b = 1;
-    double A = func(a), B = func(b);
-
-    int size_4 = 4, size_8 = 8;
-    double* x_4 = uniform_grid(a, b, size_4);
-    double* y_4 = (double*)malloc(size_4 * sizeof(double));
-
-    double* x_8 = uniform_grid(a, b, size_8);
-    double* y_8 = (double*)malloc(size_8 * sizeof(double));
-
-    FDM(x_4, y_4, a, b, A, B, size_4);
-    FDM(x_8, y_8, a, b, A, B, size_8);
-
-    double* error1 = find_error(x_4, y_4, size_4);
-    double* error2 = find_error(x_8, y_8, size_8);
-
-    write_to_file3("x1-y1-error1.txt", x_4, y_4, error1, size_4);
-    write_to_file3("x2-y2-error2.txt", x_8, y_8, error2, size_8);
-
-    double** res = FDM_EPS(a, b, A, B, 0.0001);
-
-    double* x = res[0];
-    double* y = res[1];
-    int n = (intptr_t)res[2];
-
-    double* error = find_error(x, y, n);
-    write_to_file3("x3-y3-error3.txt", x, y, error, n);
-
-    double eps = 0.1;
-    FILE* file = fopen("error3.txt", "w");
-    for(int i = 0; i < 5; i++){
-        double** res = FDM_EPS(a, b, A, B, eps);
-        double* x = res[0];
-        double* y = res[1];
-        int n = (intptr_t)res[2];
-        fprintf(file, "%.16f\n",find_error2(func, res, res[2]));
-        eps /= 10;
-    }
-
-
-    free(x_4);
-    free(y_4);
-    free(x_8);
-    free(y_8);
-    free(error1);
-    free(error2);
-
-
+    research();
     return 0;
 }

@@ -24,7 +24,8 @@ def read_file2(file):
 def research(filename):
     i, err, h = read_file2(filename)
     eps = [pow(10, -i) for i in range(1, 8)]
-    plt.loglog(err, eps, label="err")
+    plt.grid(True)
+    plt.loglog(eps, err, label="err")
     plt.loglog(eps, eps, label="биссектриса")
     plt.title('График факт ошибки от заданной точности')
     plt.legend()

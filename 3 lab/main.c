@@ -7,7 +7,7 @@
 #include <math.h>
 
 // 1 4 
-// x^5-2.2x^3+0.5x^2-7x [-2;2]
+// x^5-2.2x^3+0.5x^2-7x [0;1.5]
 
 #define result -10.818508
 
@@ -17,11 +17,12 @@ double func(double x) {
 
 double integrate_rec_l(double(*f)(double),double prev_S, int n, double a, double b) {
 	double S;
-	double h = (double)(b - a) / n;
+	double h = (double)(b - a) / n, x = a + h;
 
 	S = 0;
 	for (int i = 2;i <= n;i += 2) {
-		S += f(a + (i-1)*h);
+		S += f(x);
+        x += 2*h;
 	}
 
 	return h * S + (0.5) * prev_S;
@@ -29,7 +30,7 @@ double integrate_rec_l(double(*f)(double),double prev_S, int n, double a, double
 
 double* runge_write(double(*f)(double), double a, double b, double eps) {
 	double S, S2 = 0;
-	int n = 1;
+	int n = 2;
 	int counter = 0;
 	S2 = (b - a) * f(a);
 	do {
