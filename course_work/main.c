@@ -7,9 +7,6 @@
 #include <math.h>
 #include <time.h>
 
-// 6 1
-//  (2x+1)y’=4x+2y, (0, 4), y(a) = 1 Точное решение: y=(2x+1)ln(|2x+1|)+1
-
 #define MAX_ITER 2000
 
 double df(double x, double y) {
@@ -50,10 +47,6 @@ double** RK(double (*f)(double, double), double a, double b, double Y0, double e
             tmp1 = f(x0 + h / 2, y2);
             y3 = RK_Without_H1(df, x0 + h / 2, y2, tmp1, h / 2);
         }
-        if(fabs(y3 - y1) / 15.0 < eps/100 && x0 + h*2 < b) {
-            h *= 2;
-        }
-        
         iter++;
         x0 += h;
         y0 = y1;
@@ -71,6 +64,41 @@ double** RK(double (*f)(double, double), double a, double b, double Y0, double e
     res[3] = iter_ptr;
     return res;
 }
+
+double* euler_method(double (*f)(double, double), double y0, double a, double b, int n) {
+    double h = (b - a) / (n - 1);
+    double* y = (double*)malloc(n * sizeof(double));
+    y[0] = y0;
+    for (int i = 0; i < n - 1; i++) {
+        y[i + 1] = y[i] + h * f(a + i * h, y[i]);
+    }
+    return y;
+}
+
+double** predictor_corrector(double (*f)(double, double), double y0, double a, double b, int n) {
+    double h = (b - a) / (n - 1);
+    double* y1 = (double*)malloc(n * sizeof(double));
+    double* y2 = (double*)malloc(n * sizeof(double));
+    y1[0] = y0;
+    double x = a;
+    double* tmp = euler_method(f, y0, a, a + 2 * h, 2);
+    double* x_arr = (double*)malloc(n * sizeof(double));
+    x_arr[0] = a; x_arr[1] = a + h;
+    y1[0] = tmp[0], y1[1] = tmp[1];
+    y2[0] = tmp[0], y2[1] = tmp[1];
+    for (int i = 2; i < n; i++) {
+        x_arr[i] = a + i * h;
+        y1[i] = y1[i - 1] + h / 2 * (3 * f(x_arr[i - 1], y1[i - 1]) - f(x_arr[i - 2], y1[i - 2]));
+        y2[i] = y1[i - 1] + h / 2 * (f(x_arr[i], y1[i]) + f(x_arr[i - 1], y1[i - 1]));
+    }
+
+    double** res = (double**)malloc(2 * sizeof(double*));
+    res[0] = x_arr;
+    res[1] = y2;
+    return res;
+}
+
+
 double find_max_error(double* x, int size) {
     double max = x[0];
     for (int i = 1; i < size; i++) {
@@ -88,7 +116,6 @@ double find_error(double (*f)(double), double** tmp1, int size) {
     }
     return find_max_error(error, size);
 }
-
 void write_to_file2(char const file_name[], double* x1, double* x2, int size) {
     FILE* file = fopen(file_name, "w");
     for (int i = 0; i < size; i++) {
@@ -116,76 +143,52 @@ void write_to_file4(char const file_name[], double* x1, double* x2, double* x3, 
 int main() {
     setlocale(LC_ALL, "Rus");
 
-    int count_iter = 7;
-    double a = -1, b = 0, y0 = 1;
-    double h1 = 0.1;
-    double h2 = 0.01;
+    int count_iter = 100;
 
-    double* x = (double*)calloc((b - a) / h1 + 1, sizeof(double));
-    double* y = (double*)calloc((b - a) / h1 + 1, sizeof(double));
-    double* err = (double*)calloc((b - a) / h1 + 1, sizeof(double));
-    double* sol = (double*)calloc((b - a) / h1 + 1, sizeof(double));
-    int k = 0;
-    x[0] = a, y[0] = y0, err[0] = 0, sol[0] = f(a);
-    for (double i = a+h1; i < b; i += h1) {
-        k += 1;
-        double exact_solution = f(i);
-        double tmp = df(i, y0);
-        double numerical_solution = RK_Without_H1(df, i, y0, tmp, h1);
-        double error = fabs(exact_solution - numerical_solution);
-        x[k] = i;
-        y[k] = numerical_solution;
-        err[k] = error;
-        sol[k] = exact_solution;
-        y0 = numerical_solution;
-    }
-
-    write_to_file4("h1_x_y_err.txt", x, sol, y, err, k);
-
-    y0 = 1;
-    k = 0;
-    double* x2 = (double*)calloc((b - a) / h2 + 1, sizeof(double));
-    double* y2 = (double*)calloc((b - a) / h2 + 1, sizeof(double));
-    double* err2 = (double*)calloc((b - a) / h2 + 1, sizeof(double));
-    double* sol2 = (double*)calloc((b - a) / h2 + 1, sizeof(double));
-    x2[0] = a, y2[0] = y0, err2[0] = 0, sol2[0] = f(a);
-    for (double i = a+h2; i < b; i += h2) {
-        k += 1;
-        double exact_solution = f(i);
-        double tmp = df(i, y0);
-        double numerical_solution = RK_Without_H1(df, i, y0, tmp, h2);
-        double error = fabs(exact_solution - numerical_solution);
-        x2[k] = i;
-        y2[k] = numerical_solution;
-        err2[k] = error;
-        sol2[k] = exact_solution;
-        y0 = numerical_solution;
-    }
-
-    write_to_file4("h2_x_y_err.txt", x2, sol2, y2, err2, k);
-
-    double* error = (double*)calloc(count_iter, sizeof(double));
-    double* segment = (double*)calloc(count_iter, sizeof(double));
-    double eps = 0.1;
-    y0 = 1;
-
-    for (int i = 0; i < count_iter; i++) {
-        double** res3 = RK(df, a, b, y0, eps / 100);
-        if (eps == 0,0001) {
-            FILE* file = fopen("h_eps.txt", "w"); 
-            for (int i = 0; i < (int)(*res3[3]); i++) {
-                fprintf(file, "%.15f %.15f\n", res3[0][i], res3[2][i]);
+    double* point1 = (double*)calloc(count_iter, sizeof(double));
+    double* max_error1 = (double*)calloc(count_iter, sizeof(double));
+    double* point2 = (double*)calloc(count_iter, sizeof(double));
+    double* max_error2 = (double*)calloc(count_iter, sizeof(double));
+    FILE* file = fopen("data.txt", "w");
+    for (int i = 2; i < 100; i++) {
+        double a = -1, b = 0;
+        double h = (b - a) / i;
+        double* x1 = (double*)calloc(i, sizeof(double));
+        double* y1 = (double*)calloc(i, sizeof(double));
+        double* error = (double*)calloc(i, sizeof(double));
+        double y0 = 1;
+        x1[0] = a, y1[0] = y0, error[0] = 0;
+        int k = 0;
+        double err1 = 0;
+        for (double j = a + h; j < b; j += h) {
+            k += 1;
+            double numerical_solution = RK_Without_H1(df, j, y0, df(j, y0), h);
+            x1[k] = j;
+            y1[k] = numerical_solution;
+            error[k] = fabs(y1[k] - f(j));
+            y0 = numerical_solution;
+            if (err1 < error[k]) {
+                err1 = error[k];
+                max_error1[i - 2] = err1;
+                point1[i - 2] = j;
             }
         }
-        error[i] = find_error(f, res3, (int)(*res3[3]));
-        segment[i] = find_max_error(res3[2], (int)(*res3[3]));
-        eps *= 0.1;
+        y0 = 1, a = -1, b = 0;
+        double** res = predictor_corrector(df, y0, a, b, i);
+        double* x2 = res[0];
+        double* y2 = res[1];
+        double err2 = 0;
+        for (int j = 0; j < i; j++) {
+            if (err2 < fabs(y2[j] - f(x2[j]))) {
+                err2 = fabs(y2[j] - f(x2[j]));
+                max_error2[i - 2] = err2;
+                point2[i - 2] = x2[j];
+            }
+        }
+        printf("%d\n", i);
+        fprintf(file, "%lf %lf %lf %lf %lf\n", h, point1[i-2], max_error1[i-2], point2[i-2], max_error2[i-2]);
+
     }
-
-    write_to_file2("segment-error.txt", segment, error, count_iter);
-
-    free(error);
-    free(segment);
-
+    fclose(file);
     return 0;
 }
