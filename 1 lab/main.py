@@ -19,7 +19,9 @@ def func2(x):
 def read_file(file):
     tmp = []
     with open(file, "r") as f:
-        tmp = f.read().split()
+        for line in f:
+            data = line.split()
+            tmp.append(float(data[0].replace(",",".")))
         
     return tmp
 
@@ -116,6 +118,7 @@ def research(filename, func, a, b):
     plt.title('Первый график')
     plt.legend() # дописать
     plt.show()
+
     
     point2_mesh = read_file(f"{filename}_mesh_point2.txt")
     point2_chebish = read_file(f"{filename}_chebish_point2.txt")
@@ -124,14 +127,14 @@ def research(filename, func, a, b):
     plt.title('Первый график')
     plt.legend() # дописать
     plt.show()
-    
+
     
 
 def main():
     # добавить подписи осей
     research("func1", func1, 1, 10)
     research("func2", func2, 0, 2)
-    return 0
+
 
 
     

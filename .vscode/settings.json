@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "*.m": "matlab",
-        "omp.h": "c"
+        "omp.h": "c",
+        "cmath": "c"
     }
 }

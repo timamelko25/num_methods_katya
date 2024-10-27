@@ -50,6 +50,10 @@ double** RK(double (*f)(double, double), double a, double b, double Y0, double e
             tmp1 = f(x0 + h / 2, y2);
             y3 = RK_Without_H1(df, x0 + h / 2, y2, tmp1, h / 2);
         }
+        if(fabs(y3 - y1) / 15.0 < eps/100 && x0 + h*2 < b) {
+            h *= 2;
+        }
+        
         iter++;
         x0 += h;
         y0 = y1;
@@ -166,6 +170,12 @@ int main() {
 
     for (int i = 0; i < count_iter; i++) {
         double** res3 = RK(df, a, b, y0, eps / 100);
+        if (eps == 0,0001) {
+            FILE* file = fopen("h_eps.txt", "w"); 
+            for (int i = 0; i < (int)(*res3[3]); i++) {
+                fprintf(file, "%.15f %.15f\n", res3[0][i], res3[2][i]);
+            }
+        }
         error[i] = find_error(f, res3, (int)(*res3[3]));
         segment[i] = find_max_error(res3[2], (int)(*res3[3]));
         eps *= 0.1;
