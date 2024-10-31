@@ -52,13 +52,13 @@ def research():
     
     space = np.linspace(-1, 0, 7)
     
-    x, h = read_file("h_eps.txt")
+    '''x, h = read_file("h_eps.txt")
     plt.semilogy(x, h, label="h")
     plt.legend()
     plt.title('График изменения шага по отрезку, eps = 0.0001')
     plt.xlabel('x')
     plt.ylabel('h')
-    plt.show()
+    plt.show()'''
     
     h, err_eps = read_file("segment-error.txt")
     plt.loglog(eps, err_eps, label="err")

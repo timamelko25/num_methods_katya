@@ -39,15 +39,13 @@ double** RK(double (*f)(double, double), double a, double b, double Y0, double e
         double tmp = f(x0, y0);
         double y1 = RK_Without_H1(df, x0, y0, tmp, h);
         double y2 = RK_Without_H1(df, x0, y0, tmp, h / 2);
-        tmp = f(x0 + h / 2, y2);
-        double y3 = RK_Without_H1(df, x0 + h / 2, y2, tmp, h / 2);
+        double y3 = RK_Without_H1(df, x0 + h / 2, y2, f(x0 + h / 2, y2), h / 2);
 
         while (fabs(y3 - y1) / 15.0 > eps) {
             h /= 2;
             y1 = y2;
-            double tmp1 = f(x0, y0);
-            y2 = RK_Without_H1(df, x0, y0, tmp1, h / 2);
-            tmp1 = f(x0 + h / 2, y2);
+            y2 = RK_Without_H1(df, x0, y0, tmp, h / 2);
+            double tmp1 = f(x0 + h / 2, y2);
             y3 = RK_Without_H1(df, x0 + h / 2, y2, tmp1, h / 2);
         }
         if(fabs(y3 - y1) / 15.0 < eps/100 && x0 + h*2 < b) {
@@ -56,7 +54,7 @@ double** RK(double (*f)(double, double), double a, double b, double Y0, double e
         
         iter++;
         x0 += h;
-        y0 = y1;
+        y0 = y3;
         x = (double*)realloc(x, (iter + 1) * sizeof(double)), y = (double*)realloc(y, (iter + 1) * sizeof(double)), segment = (double*)realloc(segment, (iter + 1) * sizeof(double));
         x[iter] = x0;
         y[iter] = y0;
@@ -127,7 +125,7 @@ int main() {
     double* sol = (double*)calloc((b - a) / h1 + 1, sizeof(double));
     int k = 0;
     x[0] = a, y[0] = y0, err[0] = 0, sol[0] = f(a);
-    for (double i = a+h1; i < b; i += h1) {
+    for (double i = a+h1; i <= b; i += h1) {
         k += 1;
         double exact_solution = f(i);
         double tmp = df(i, y0);
@@ -140,7 +138,7 @@ int main() {
         y0 = numerical_solution;
     }
 
-    write_to_file4("h1_x_y_err.txt", x, sol, y, err, k);
+    write_to_file4("h1_x_y_err.txt", x, sol, y, err, k+1);
 
     y0 = 1;
     k = 0;
@@ -149,7 +147,7 @@ int main() {
     double* err2 = (double*)calloc((b - a) / h2 + 1, sizeof(double));
     double* sol2 = (double*)calloc((b - a) / h2 + 1, sizeof(double));
     x2[0] = a, y2[0] = y0, err2[0] = 0, sol2[0] = f(a);
-    for (double i = a+h2; i < b; i += h2) {
+    for (double i = a+h2; i <= b; i += h2) {
         k += 1;
         double exact_solution = f(i);
         double tmp = df(i, y0);
@@ -162,7 +160,7 @@ int main() {
         y0 = numerical_solution;
     }
 
-    write_to_file4("h2_x_y_err.txt", x2, sol2, y2, err2, k);
+    write_to_file4("h2_x_y_err.txt", x2, sol2, y2, err2, k+1);
 
     double* error = (double*)calloc(count_iter, sizeof(double));
     double* segment = (double*)calloc(count_iter, sizeof(double));
