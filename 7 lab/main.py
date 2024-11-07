@@ -14,7 +14,7 @@ def read_file(file):
             data = line.split()
             tmp.append(float(data[0].replace(",",".")))
             tmp2.append(float(data[1].replace(",",".")))
-            tmp3.append(float(data[1].replace(",",".")))
+            tmp3.append(float(data[2].replace(",",".")))
     return tmp, tmp2, tmp3
 
 def read_file2(file):
@@ -44,6 +44,8 @@ def research():
     eps = [pow(10, -i) for i in range(1, 7)]
     
     plt.semilogy(x1, err1, label="err h1 = 0.16")
+    print(err1)
+    print(err2)
     plt.semilogy(x2, err2, label="err h2 = 0.016")
     plt.legend()
     plt.title('График ошибки для 2-ух разбиений')
@@ -68,8 +70,8 @@ def research():
     plt.loglog(eps, eps, label="биссектриса")
     plt.title('График факт ошибки от заданной точности')
     plt.legend()
-    plt.xlabel('ошибка')
-    plt.ylabel('точность')
+    plt.ylabel('ошибка')
+    plt.xlabel('точность')
     plt.show()
     
     return 0
